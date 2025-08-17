@@ -6,12 +6,15 @@ const cors = require('cors');
 const app = express();
 app.use(cors());
 
+console.log("数据库信息")
+console.log(process.env.MONGODB_URI)
+console.log(process.env.DB_NAME)
+
 // MongoDB 连接
 const client = new MongoClient(process.env.MONGODB_URI);
 let db;
 
-console.log(process.env.MONGODB_URI)
-console.log(process.env.DB_NAME)
+
 
 async function connectDB() {
   await client.connect();
