@@ -1,39 +1,74 @@
 require('dotenv').config();
 const express = require('express');
-const mongoose = require('mongoose');
+const { MongoClient } = require('mongodb');
 const cors = require('cors');
-const apiRoutes = require('./routes/api');
 
 const app = express();
+app.use(cors());
 
-// 中间件配置
-app.use(cors({
-  origin: process.env.CORS_ORIGIN || '*' 
-}));
-app.use(express.json());
+// MongoDB 连接
+const client = new MongoClient(process.env.MONGODB_URI);
+let db;
 
-// 连接MongoDB
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
+console.log(process.env.MONGODB_URI)
+console.log(process.env.DB_NAME)
+
+async function connectDB() {
+  await client.connect();
+  db = client.db(process.env.DB_NAME);
+  console.log("Connected to MongoDB");
+}
+connectDB();
+
+// API路由：获取所有宠物
+app.get('/api/pets', async (req, res) => {
+  try {
+    const pets = await db.collection('pets').find({}).toArray();
+    res.json(pets);
+  } catch (err) {
+    res.status(500).json({ error: "Database error" });
+  }
 });
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'MongoDB连接错误:'));
-db.once('open', () => {
-  console.log('✅ 成功连接到本地MongoDB');
+// 在已有代码后添加以下路由（放在 app.get 之后，app.listen 之前）
+
+// API路由：添加新宠物
+app.post('/api/pets', express.json(), async (req, res) => {
+  try {
+    // 1. 验证输入数据
+    if (!req.body.name || !req.body.species) {
+      return res.status(400).json({ 
+        error: "必须提供 name 和 species 字段" 
+      });
+    }
+
+    // 2. 准备要插入的数据
+    const newPet = {
+      name: req.body.name,
+      species: req.body.species,
+      age: req.body.age || null,       // 可选字段
+      createdAt: new Date()           // 自动添加时间戳
+    };
+
+    // 3. 插入数据库
+    const result = await db.collection('pets').insertOne(newPet);
+    
+    // 4. 返回创建成功的响应
+    res.status(201).json({
+      _id: result.insertedId,
+      ...newPet
+    });
+
+  } catch (err) {
+    console.error("添加宠物失败:", err);
+    res.status(500).json({ 
+      error: "服务器内部错误",
+      details: err.message 
+    });
+  }
 });
 
-// 注册路由
-app.use('/api', apiRoutes);
-
-// 健康检查端点
-app.get('/health', (req, res) => {
-  res.status(200).send('API运行正常');
-});
-
-// 启动服务器
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 服务器运行在 http://localhost:${PORT}`);
+// 启动服务
+app.listen(process.env.PORT, () => {
+  console.log(`API running on port ${process.env.PORT}`);
 });

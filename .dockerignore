@@ -1,3 +1,7 @@
-MONGODB_URI=mongodb://admin:songqi1209*@192.168.142.128:27017
-PORT=3000
-CORS_ORIGIN=http://localhost:8848  # 前端开发服务器地址
+node_modules
+npm-debug.log
+.env
+.git
+.gitignore
+Dockerfile
+.dockerignore
